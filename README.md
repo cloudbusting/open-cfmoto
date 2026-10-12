@@ -639,8 +639,9 @@ straight to the playing music app.
 
 - Remotes that pair as a **headset** (not an input device) look like a helmet, so their keys go to
   music. Most cheap remotes pair as input devices.
-- APK installs on Android 13+: if the Accessibility switch is greyed out, open
-  **App info → ⋮ → Allow restricted settings** first.
+- APK installs on Android 13+: Android may block the Accessibility switch with a *Restricted
+  setting* message. After that (not before) **App info → ⋮ → Allow restricted settings** appears;
+  allow it, then switch the service on. Installs over USB / adb aren't restricted.
 - Without the Accessibility service, a remote only works while OpenCfMoto is on screen (and its
   media keys when *Handlebar buttons drive Android Auto* is on).
 
