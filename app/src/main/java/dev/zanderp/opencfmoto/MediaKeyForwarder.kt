@@ -5,6 +5,7 @@ package dev.zanderp.opencfmoto
 
 import android.content.ComponentName
 import android.content.Context
+import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
@@ -43,17 +44,31 @@ class MediaKeyForwarder : NotificationListenerService() {
         /** Send [event] to the playing (else most recent) other media app. False if there is none. */
         fun forward(ctx: Context, event: KeyEvent): Boolean {
             return try {
-                val msm = ctx.getSystemService(MediaSessionManager::class.java)
-                val sessions = msm.getActiveSessions(ComponentName(ctx, MediaKeyForwarder::class.java))
-                    .filter { it.packageName != ctx.packageName }
-                val target = sessions.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-                    ?: sessions.firstOrNull()
-                    ?: return false
+                val target = musicApp(ctx) ?: return false
                 target.dispatchMediaButtonEvent(event)
             } catch (e: Exception) {
                 LogBus.log("[REMOTE] music pass-through failed: $e")
                 false
             }
+        }
+
+        /**
+         * The music app's real state, for our own session to report. Headsets pick PLAY vs PAUSE
+         * from the state of the media-button owner — us — and a Cardo re-sends PAUSE every 2 s
+         * while we still say PLAYING. Null when there is no music app.
+         */
+        fun musicState(ctx: Context): Int? = try {
+            musicApp(ctx)?.playbackState?.state
+        } catch (_: Exception) {
+            null
+        }
+
+        private fun musicApp(ctx: Context): MediaController? {
+            val msm = ctx.getSystemService(MediaSessionManager::class.java)
+            val sessions = msm.getActiveSessions(ComponentName(ctx, MediaKeyForwarder::class.java))
+                .filter { it.packageName != ctx.packageName }
+            return sessions.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                ?: sessions.firstOrNull()
         }
     }
 }

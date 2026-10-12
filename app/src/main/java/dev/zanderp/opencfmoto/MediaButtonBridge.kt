@@ -355,11 +355,17 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
     private val replayRunnable = Runnable {
         if (!forwardsToMusic()) return@Runnable
         lastReplayAt = SystemClock.elapsedRealtime()
-        // Start the new track before dropping the old, or the music app is briefly newest.
-        val old = silence
-        silence = null
-        startSilence()
-        try { old?.pause(); old?.flush(); old?.release() } catch (_: Exception) {}
+        if (reportedState() != PlaybackState.STATE_PLAYING) {
+            // Music paused: any live stream (even ours, silent) tells a helmet music is still
+            // playing — a Cardo then re-sends PAUSE every 2 s. Go quiet; we stay the newest player.
+            stopSilence()
+        } else {
+            // Start the new track before dropping the old, or the music app is briefly newest.
+            val old = silence
+            silence = null
+            startSilence()
+            try { old?.pause(); old?.flush(); old?.release() } catch (_: Exception) {}
+        }
         refreshPlayingAppearance(reason = "keep-alive")
     }
     private val playbackCallback = object : AudioManager.AudioPlaybackCallback() {
@@ -420,7 +426,7 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
                             PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_FAST_FORWARD or
                             PlaybackState.ACTION_REWIND
                     )
-                    .setState(PlaybackState.STATE_PLAYING, 0, 1f)
+                    .setState(reportedState(), 0, 1f)
                     .build()
             )
             session?.isActive = true
@@ -428,6 +434,18 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
             if (reason != "keep-alive") log("[BTN] playing appearance refreshed ($reason)")
         } catch (e: Exception) {
             log("[BTN] refreshPlayingAppearance failed: $e")
+        }
+    }
+
+    /**
+     * Handlebar capture always reports PLAYING (the dash only sends keys to a playing player).
+     * Remote-only mirrors the music app, so helmet play/pause sends PLAY when music is paused.
+     */
+    private fun reportedState(): Int {
+        if (!forwardsToMusic()) return PlaybackState.STATE_PLAYING
+        return when (MediaKeyForwarder.musicState(context)) {
+            PlaybackState.STATE_PLAYING, PlaybackState.STATE_BUFFERING -> PlaybackState.STATE_PLAYING
+            else -> PlaybackState.STATE_PAUSED
         }
     }
 
