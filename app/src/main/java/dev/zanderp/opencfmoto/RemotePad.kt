@@ -50,6 +50,16 @@ object RemotePad {
         return defaultGesture(keyCode)
     }
 
+    /**
+     * A taught gesture for a media key that reached us via MediaSession (phone locked / app in the
+     * background). Only real HID remotes match — the bike's AVRCP keys arrive on a virtual device,
+     * so they keep their normal handlebar meaning. Untaught keys return null and also fall through.
+     */
+    fun taughtMediaGesture(ctx: Context, event: KeyEvent): ButtonGesture? {
+        if (!enabled(ctx) || !isExternalPad(event)) return null
+        return loadMap(ctx)[event.keyCode]
+    }
+
     fun teach(ctx: Context, keyCode: Int, gesture: ButtonGesture) {
         val map = loadMap(ctx).toMutableMap()
         map[keyCode] = gesture

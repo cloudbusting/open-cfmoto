@@ -808,6 +808,13 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
         override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
             @Suppress("DEPRECATION")
             val ke = mediaButtonIntent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT) ?: return true
+            RemotePad.taughtMediaGesture(context, ke)?.let { gesture ->
+                if (ke.action == KeyEvent.ACTION_DOWN && ke.repeatCount == 0) {
+                    log("[BTN] remote ${KeyEvent.keyCodeToString(ke.keyCode)} (${ke.device?.name}) → ${gesture.label}")
+                    run(gesture)
+                }
+                return true
+            }
             when (ke.action) {
                 KeyEvent.ACTION_DOWN -> {
                     val repeat = if (ke.repeatCount > 0) " repeat=${ke.repeatCount}" else ""

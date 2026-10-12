@@ -218,6 +218,9 @@ class ButtonMappingActivity : AppCompatActivity() {
             .setMessage(gesture.label)
             .setNegativeButton(android.R.string.cancel) { _, _ -> RemotePad.teachListener = null }
             .setOnDismissListener { RemotePad.teachListener = null }
+            // The dialog has its own window, so keys never reach this activity's dispatchKeyEvent
+            // while it's up — and unhandled media keys fall through to the system media session.
+            .setOnKeyListener { _, _, ev -> RemotePad.teachListener?.invoke(ev) ?: false }
             .create()
         RemotePad.teachListener = listen@{ ev ->
             if (ev.device?.isVirtual == true) return@listen false
