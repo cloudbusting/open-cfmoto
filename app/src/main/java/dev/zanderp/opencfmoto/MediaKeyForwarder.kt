@@ -23,12 +23,16 @@ class MediaKeyForwarder : NotificationListenerService() {
 
     override fun onListenerConnected() {
         LogBus.log("[REMOTE] music pass-through access on")
+        // Finding media sessions only needs the access *granted*, not a live listener — so stop
+        // Android delivering us any notifications at all. Access stays granted.
+        requestUnbind()
         // The listener binds before the settings toggle lands in Settings.Secure, so [hasAccess]
         // still reads false right now — re-check once it has.
         Handler(Looper.getMainLooper()).postDelayed({ MediaButtonBridge.instance?.refreshMode() }, 1_000)
     }
 
     override fun onListenerDisconnected() {
+        // Fires right after our own requestUnbind(); a real revoke is caught by hasAccess().
         MediaButtonBridge.instance?.refreshMode()
     }
 

@@ -580,7 +580,10 @@ controls. Remote keys drive Android Auto; everything else stays on music.
 2. **Controls → Customize buttons → Bluetooth remote pad** → **On**.
 3. Tap **Use remote in the background…** and switch on **OpenCfMoto remote** in Accessibility.
 4. Tap **Keep helmet / headset buttons on music…** and allow notification access for
-   **OpenCfMoto music pass-through**.
+   **OpenCfMoto music pass-through**. Android warns that it can read notifications; it doesn't.
+   *Conversations*, *Notifications* and *Silent* are locked off, and the app stops Android
+   delivering it notifications once access is granted. It only uses the access to find your
+   music app's controls.
 5. Turn **Handlebar buttons drive Android Auto** **off** (Controls). The bike's own buttons go back
    to music; only the remote drives AA.
 6. **Teach a remote button…** → pick a gesture → press the remote key. Then set what each gesture

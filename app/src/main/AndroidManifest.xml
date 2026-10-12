@@ -157,6 +157,14 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
+            <!-- We never read notifications: lock out Conversations / Notifications / Silent in
+                 Settings, leaving only Real-time (Android needs one type), and unbind on connect. -->
+            <meta-data
+                android:name="android.service.notification.default_filter_types"
+                android:value="ongoing" />
+            <meta-data
+                android:name="android.service.notification.disabled_filter_types"
+                android:value="conversations|alerting|silent" />
         </service>
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
