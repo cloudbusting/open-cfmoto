@@ -309,6 +309,12 @@ Findings behind `RemoteKeyService`, `MediaKeyForwarder` and remote-only mode in 
 - **Cheap "SmartRemote" chips do gesture detection themselves:** tap → NEXT / PREVIOUS / PLAY_PAUSE;
   hold ▶▶ / ◀◀ → VOLUME_DOWN / UP every ~300 ms (folded into one press via `HOLD_STREAM_GAP_MS`);
   double-tap ▶▶ → HOME, ◀◀ → POWER, ⏯ → nothing.
+- **Helmets (Cardo) decide PLAY vs PAUSE from what the media-button owner reports *and* whether
+  audio is streaming.** While OpenCfMoto said PLAYING, or its silent track kept the Bluetooth stream
+  open, a Cardo re-sent PAUSE every 2 s and its Play never got through. Remote-only mode mirrors the
+  music app's state and stops the silent track while music is paused; it stays media-button owner.
+- **Notification access is only needed *granted*:** `getActiveSessions` works after the listener
+  calls `requestUnbind()`, so the pass-through receives no notifications at all.
 - **Dialogs have their own window:** an activity's `dispatchKeyEvent` never sees keys while a
   dialog is up — the teach dialog forwards via `setOnKeyListener`.
 - Tools: `adb shell getevent -lt /dev/input/eventN` (raw remote keys), `adb logcat -s
