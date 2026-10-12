@@ -80,6 +80,7 @@ class RemoteKeyService : AccessibilityService() {
     private fun fire(event: KeyEvent, action: ButtonAction?, gesture: ButtonGesture?) {
         val what = action?.label ?: gesture?.label ?: return
         LogBus.log("[REMOTE] ${KeyEvent.keyCodeToString(event.keyCode)} (${event.device?.name}) → $what")
+        MediaButtonBridge.remotePressed()
         if (action != null) MediaButtonBridge.injectAction(action)
         else if (gesture != null) MediaButtonBridge.injectGesture(gesture)
     }

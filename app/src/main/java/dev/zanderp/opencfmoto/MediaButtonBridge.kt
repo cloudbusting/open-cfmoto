@@ -355,8 +355,11 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
     private val replayRunnable = Runnable {
         if (!forwardsToMusic()) return@Runnable
         lastReplayAt = SystemClock.elapsedRealtime()
-        stopSilence()
+        // Start the new track before dropping the old, or the music app is briefly newest.
+        val old = silence
+        silence = null
         startSilence()
+        try { old?.pause(); old?.flush(); old?.release() } catch (_: Exception) {}
         refreshPlayingAppearance(reason = "keep-alive")
     }
     private val playbackCallback = object : AudioManager.AudioPlaybackCallback() {
@@ -519,6 +522,8 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
         if (instance === this) instance = null
         try { audio.unregisterAudioPlaybackCallback(playbackCallback) } catch (_: Exception) {}
         handler.removeCallbacks(replayRunnable)
+        try { remoteWake?.release() } catch (_: Exception) {}
+        remoteWake = null
         cancelPendingTaps()
         stopKeepAlive()
         cancelReclaim()
@@ -934,21 +939,25 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
         MediaKeyForwarder.forward(context, KeyEvent(KeyEvent.ACTION_UP, keyCode))
     }
 
+    /** One non-counted lock, re-armed by every remote press, so the window slides. */
+    private var remoteWake: PowerManager.WakeLock? = null
+
     /**
-     * A remote key reached us via MediaSession, which means the screen is off (otherwise
-     * [RemoteKeyService] takes it first). Light the screen briefly so the remote's VOLUME / HOME
-     * holds and double-taps — which never reach a MediaSession — work for the next presses.
+     * Keep the screen (dimmed) awake for [REMOTE_WAKE_MS] after every remote press, waking it if
+     * it's off. Remotes turn holds / double-taps into VOLUME / HOME, which only [RemoteKeyService]
+     * can catch — and it only sees keys while the screen is on. With the screen off, only the
+     * remote's plain media taps reach us (via MediaSession), so one of those has to wake it.
      */
     private fun wakeForRemote() {
+        if (!RemoteKeyService.isEnabled(context)) return
         val pm = context.getSystemService(PowerManager::class.java) ?: return
-        if (pm.isInteractive || !RemoteKeyService.isEnabled(context)) return
         try {
-            @Suppress("DEPRECATION")
-            pm.newWakeLock(
+            val wl = remoteWake ?: @Suppress("DEPRECATION") pm.newWakeLock(
                 PowerManager.SCREEN_DIM_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
                 "OpenCfMoto:remote",
-            ).acquire(REMOTE_WAKE_MS)
-            log("[BTN] remote press with screen off — waking screen for ${REMOTE_WAKE_MS / 1000}s")
+            ).also { it.setReferenceCounted(false); remoteWake = it }
+            if (!pm.isInteractive) log("[BTN] remote press with screen off — waking screen")
+            wl.acquire(REMOTE_WAKE_MS)
         } catch (e: Exception) {
             log("[BTN] remote wake failed: $e")
         }
@@ -1046,8 +1055,8 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
         private const val REPLAY_DELAY_MS = 250L
         private const val REPLAY_ECHO_MS = 1_000L
         private const val REPLAY_AFTER_FORWARD_MS = 1_200L
-        /** Screen-on window after a screen-off remote press, so holds / double-taps work next. */
-        private const val REMOTE_WAKE_MS = 10_000L
+        /** Screen stays on this long after the last remote press, so holds / double-taps work. */
+        private const val REMOTE_WAKE_MS = 60_000L
 
         private const val REASSERT_POLL_MS = 1_000L
         private const val REASSERT_GIVEUP_MS = 90_000L
@@ -1067,6 +1076,11 @@ class MediaButtonBridge(private val context: Context, private val log: (String) 
         /** The live bridge (when Android Auto is running), so the settings toggle can reach it. */
         @Volatile var instance: MediaButtonBridge? = null
             private set
+
+        /** A remote key arrived via [RemoteKeyService]: slide the stay-awake window. */
+        fun remotePressed() {
+            instance?.let { b -> b.handler.post { b.wakeForRemote() } }
+        }
 
         fun injectGesture(gesture: ButtonGesture) {
             instance?.let { b -> b.handler.post { b.run(gesture, fromRemote = true) } }
